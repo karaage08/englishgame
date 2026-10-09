@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>英語ペア探しゲーム</title>
+
+<style>
+
+body{
+font-family:"Yu Gothic",sans-serif;
+background:#eef6ff;
+margin:0;
+padding:20px;
+}
+
+h1{
+text-align:center;
+color:#2563eb;
+}
+
+#startScreen,
+#resultScreen{
+text-align:center;
+}
+
+#gameArea{
+display:none;
+}
+
+#resultScreen{
+display:none;
+}
+
+button{
+padding:12px 28px;
+font-size:18px;
+border:none;
+border-radius:10px;
+background:#60a5fa;
+color:white;
+cursor:pointer;
+}
+
+.info{
+display:flex;
+justify-content:center;
+gap:25px;
+font-weight:bold;
+margin:15px;
+}
+
+.grid{
+
+display:grid;
+
+grid-template-columns:
+repeat(4,1fr);
+
+gap:10px;
+
+max-width:900px;
+
+margin:auto;
+
+}
+
+
+.card{
+height:80px;
+background:white;
+border:2px solid #cbd5e1;
+border-radius:10px;
+
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+
+cursor:pointer;
+
+transition:.2s;
+}
+
+.card:hover{
+background:#f8fafc;
+}
+
+.selected{
+background:#60a5fa;
+color:white;
+border:4px solid #1d4ed8;
+box-shadow:0 0 15px rgba(37,99,235,.5);
+transform:scale(1.05);
+}
+
+.matched{
+background:#86efac;
+border:4px solid #22c55e;
+}
+
+.word{
+font-weight:bold;
+font-size:18px;
+}
+
+.small{
+font-size:12px;
+}
+
+#finalRank{
+font-size:48px;
+color:#ff4fa3;
+}
+
+</style>
+</head>
+<body>
+
+<h1>🌟 英語ペア探しゲーム 🌟</h1>
+
+<div id="startScreen">
+
+<p>
+30語の中からランダム8ペア出題
+</p>
+
+<button id="startBtn">
+ゲームスタート
+</button>
+
+</div>
+
+<div class="info">
+
+<div id="timer">
+⏱ 00:00
+</div>
+
+<div id="misses">
+❌ 0回
+</div>
+
+<div id="progress">
+✅ 0/8
+</div>
+
+</div>
+
+<div id="gameArea">
+
+<div id="cardGrid" class="grid"></div>
+
+</div>
+
+<div id="resultScreen">
+
+<h2>🎉 COMPLETE!</h2>
+
+<p id="playDate"></p>
+
+<p id="finalTime"></p>
+
+<p id="finalMiss"></p>
+
+<p id="finalScore"></p>
+
+<h1 id="finalRank"></h1>
+
+<button onclick="location.reload()">
+再挑戦
+</button>
+
+</div>
+
+<script>
+
+const allPairs = [
+
+{english:"apple",reading:"アップル",japanese:"りんご",furigana:""},
+{english:"dog",reading:"ドッグ",japanese:"犬",furigana:"いぬ"},
+{english:"book",reading:"ブック",japanese:"本",furigana:"ほん"},
+{english:"school",reading:"スクール",japanese:"学校",furigana:"がっこう"},
+{english:"cat",reading:"キャット",japanese:"猫",furigana:"ねこ"},
+{english:"water",reading:"ウォーター",japanese:"水",furigana:"みず"},
+{english:"sun",reading:"サン",japanese:"太陽",furigana:"たいよう"},
+{english:"friend",reading:"フレンド",japanese:"友達",furigana:"ともだち"},
+{english:"music",reading:"ミュージック",japanese:"音楽",furigana:"おんがく"},
+{english:"teacher",reading:"ティーチャー",japanese:"先生",furigana:"せんせい"},
+
+{english:"important",reading:"インポータント",japanese:"重要な",furigana:"じゅうような"},
+{english:"future",reading:"フューチャー",japanese:"未来",furigana:"みらい"},
+{english:"culture",reading:"カルチャー",japanese:"文化",furigana:"ぶんか"},
+{english:"challenge",reading:"チャレンジ",japanese:"挑戦",furigana:"ちょうせん"},
+{english:"experience",reading:"エクスペリエンス",japanese:"経験",furigana:"けいけん"},
+{english:"environment",reading:"エンバイロメント",japanese:"環境",furigana:"かんきょう"},
+{english:"communication",reading:"コミュニケーション",japanese:"コミュニケーション",furigana:""},
+{english:"responsibility",reading:"レスポンシビリティ",japanese:"責任",furigana:"せきにん"},
+{english:"improve",reading:"インプルーブ",japanese:"改善する",furigana:"かいぜんする"},
+{english:"decide",reading:"ディサイド",japanese:"決定する",furigana:"けっていする"},
+
+{english:"happy",reading:"ハッピー",japanese:"うれしい",furigana:""},
+{english:"sad",reading:"サッド",japanese:"悲しい",furigana:"かなしい"},
+{english:"angry",reading:"アングリー",japanese:"怒っている",furigana:"おこっている"},
+{english:"hungry",reading:"ハングリー",japanese:"おなかがすいた",furigana:""},
+{english:"tired",reading:"タイアード",japanese:"疲れた",furigana:"つかれた"},
+
+{english:"library",reading:"ライブラリー",japanese:"図書館",furigana:"としょかん"},
+{english:"hospital",reading:"ホスピタル",japanese:"病院",furigana:"びょういん"},
+{english:"station",reading:"ステーション",japanese:"駅",furigana:"えき"},
+{english:"family",reading:"ファミリー",japanese:"家族",furigana:"かぞく"},
+{english:"breakfast",reading:"ブレックファスト",japanese:"朝食",furigana:"ちょうしょく"}
+
+];
+
+let selectedCard = null;
+let selectedElement = null;
+
+let matched = 0;
+let misses = 0;
+
+let startTime;
+let timerId;
+
+document
+.getElementById("startBtn")
+.onclick = startGame;
+
+function startGame(){
+
+document
+.getElementById("startScreen")
+.style.display = "none";
+
+document
+.getElementById("gameArea")
+.style.display = "block";
+
+startTime = Date.now();
+
+timerId =
+setInterval(updateTimer,1000);
+
+createBoard();
+
+}
+
+function updateTimer(){
+
+const sec =
+Math.floor(
+(Date.now()-startTime)/1000
+);
+
+const m =
+String(
+Math.floor(sec/60)
+).padStart(2,"0");
+
+const s =
+String(sec%60)
+.padStart(2,"0");
+
+document
+.getElementById("timer")
+.textContent =
+`⏱ ${m}:${s}`;
+
+}
+
+function createBoard(){
+
+const pairs =
+[...allPairs]
+.sort(() => Math.random() - 0.5)
+.slice(0,8);
+
+const englishCards =
+[...pairs]
+.sort(() => Math.random() - 0.5);
+
+const japaneseCards =
+[...pairs]
+.sort(() => Math.random() - 0.5);
+
+const grid =
+document.getElementById(
+"cardGrid"
+);
+
+grid.innerHTML = "";
+
+for(let i = 0; i < 4; i++){
+
+const rowCards = [
+
+{
+type:"english",
+pair:englishCards[i]
+},
+
+{
+type:"english",
+pair:englishCards[i+4]
+},
+
+{
+type:"japanese",
+pair:japaneseCards[i]
+},
+
+{
+type:"japanese",
+pair:japaneseCards[i+4]
+}
+
+];
+
+rowCards.forEach(card=>{
+
+const div =
+document.createElement("div");
+
+div.className = "card";
+
+if(card.type==="english"){
+
+div.innerHTML = `
+<div class="word">
+${card.pair.english}
+</div>
+
+<div class="small">
+${card.pair.reading}
+</div>
+`;
+
+}else{
+
+const furi =
+card.pair.furigana
+? `<div class="small">${card.pair.furigana}</div>`
+: "";
+
+div.innerHTML = `
+<div class="word">
+${card.pair.japanese}
+</div>
+${furi}
+`;
+
+}
+
+div.onclick = ()=>{
+
+selectCard(div,card);
+
+};
+
+grid.appendChild(div);
+
+});
+
+}
+
+}
+
+function selectCard(element,card){
+
+if(
+element.classList.contains(
+"matched"
+)
+){
+return;
+}
+
+if(selectedCard===null){
+
+document
+.querySelectorAll(".card")
+.forEach(c=>{
+
+c.classList.remove(
+"selected"
+);
+
+});
+
+element.classList.add(
+"selected"
+);
+
+selectedCard = card;
+selectedElement = element;
+
+return;
+
+}
+
+if(element===selectedElement){
+return;
+}
+
+if(
+selectedCard.pair.english ===
+card.pair.english
+){
+
+selectedElement.classList.remove(
+"selected"
+);
+
+selectedElement.classList.add(
+"matched"
+);
+
+element.classList.add(
+"matched"
+);
+
+matched++;
+
+document
+.getElementById("progress")
+.textContent =
+`✅ ${matched}/8`;
+
+if(matched===8){
+
+finishGame();
+
+}
+
+}else{
+
+misses++;
+
+document
+.getElementById("misses")
+.textContent =
+`❌ ${misses}回`;
+
+selectedElement.classList.remove(
+"selected"
+);
+
+}
+
+selectedCard = null;
+selectedElement = null;
+
+}
+
+function finishGame(){
+
+clearInterval(timerId);
+
+document
+.getElementById("gameArea")
+.style.display = "none";
+
+document
+.getElementById("resultScreen")
+.style.display = "block";
+
+let score =
+100 - (misses * 2);
+
+if(score < 0){
+score = 0;
+}
+
+let rank = "D";
+
+if(score >= 90){
+rank = "S";
+}
+else if(score >= 80){
+rank = "A";
+}
+else if(score >= 70){
+rank = "B";
+}
+else if(score >= 60){
+rank = "C";
+}
+
+document
+.getElementById("playDate")
+.innerHTML =
+"実施日時<br>" +
+new Date().toLocaleString("ja-JP");
+
+document
+.getElementById("finalTime")
+.innerHTML =
+"タイム<br>" +
+document.getElementById(
+"timer"
+).textContent;
+
+document
+.getElementById("finalMiss")
+.innerHTML =
+"ミス回数<br>" +
+misses + "回";
+
+document
+.getElementById("finalScore")
+.innerHTML =
+"スコア<br>" +
+score + "点";
+
+document
+.getElementById("finalRank")
+.textContent =
+rank;
+
+}
+
+</script>
+
+</body>
+</html>
