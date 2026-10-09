@@ -299,7 +299,7 @@ transform:translateX(0);
 }
 
 }
-``
+
 
 h2{
 
@@ -403,10 +403,16 @@ gap:10px;
 
 <p id="finalScore"></p>
 
+<div id="mistakeList"></div>
+
 <h1 id="finalRank"></h1>
 
+<button onclick="startReviewGame()">
+復習チャレンジ
+</button>
+
 <button onclick="location.reload()">
-再挑戦
+最初から遊ぶ
 </button>
 
 </div>
@@ -431,10 +437,10 @@ const allPairs = [
 {english:"culture",reading:"カルチャー",japanese:"文化",furigana:"ぶんか"},
 {english:"challenge",reading:"チャレンジ",japanese:"挑戦",furigana:"ちょうせん"},
 {english:"experience",reading:"エクスペリエンス",japanese:"経験",furigana:"けいけん"},
-{english:"front",reading:"フロント",japanese:"正面",furigana:"しょうめん"},
+{english:"environment",reading:"エンバイロメント",japanese:"環境",furigana:"かんきょう"},
 {english:"communication",reading:"コミュニケーション",japanese:"コミュニケーション",furigana:""},
-{english:"corner",reading:"コーナー",japanese:"かど",furigana:""},
-{english:"near",reading:"ニアー",japanese:"近い",furigana:"ちかい"},
+{english:"responsibility",reading:"レスポンシビリティ",japanese:"責任",furigana:"せきにん"},
+{english:"improve",reading:"インプルーブ",japanese:"改善する",furigana:"かいぜんする"},
 {english:"decide",reading:"ディサイド",japanese:"決定する",furigana:"けっていする"},
 
 {english:"happy",reading:"ハッピー",japanese:"うれしい",furigana:""},
@@ -444,9 +450,9 @@ const allPairs = [
 {english:"tired",reading:"タイアード",japanese:"疲れた",furigana:"つかれた"},
 
 {english:"library",reading:"ライブラリー",japanese:"図書館",furigana:"としょかん"},
-{english:"center",reading:"センター",japanese:"中心",furigana:"ちゅうしん"},
+{english:"hospital",reading:"ホスピタル",japanese:"病院",furigana:"びょういん"},
 {english:"station",reading:"ステーション",japanese:"駅",furigana:"えき"},
-{english:"middle",reading:"ミドル",japanese:"真ん中",furigana:"まんなか"},
+{english:"family",reading:"ファミリー",japanese:"家族",furigana:"かぞく"},
 {english:"breakfast",reading:"ブレックファスト",japanese:"朝食",furigana:"ちょうしょく"}
 
 ];
@@ -456,6 +462,10 @@ let selectedElement = null;
 
 let matched = 0;
 let misses = 0;
+
+let mistakeList = [];
+let reviewPairs = [];
+let reviewMode = false;
 
 let startTime;
 let timerId;
@@ -675,10 +685,25 @@ document
 .textContent =
 `✅ ${matched}/8`;
 
-if(matched===8){
+const goal =
+reviewMode
+? reviewPairs.length
+: 8;
 
-finishGame();
+if(matched===goal){
 
+    if(reviewMode){
+
+        alert(
+        "🎉復習チャレンジクリア！"
+        );
+
+        location.reload();
+
+    }else{
+
+        finishGame();
+    }
 }
 
 }else{
@@ -690,6 +715,24 @@ message.textContent =
 "❌ TRY AGAIN!";
 
 misses++;
+
+mistakeList.push({
+    english:selectedCard.pair.english,
+    japanese:selectedCard.pair.japanese,
+    wrong:
+        card.type==="english"
+        ? card.pair.english
+        : card.pair.japanese
+});
+
+if(
+ !reviewPairs.some(
+   p => p.english === selectedCard.pair.english
+ )
+){
+   reviewPairs.push(selectedCard.pair);
+}
+
 
 document
 .getElementById("misses")
@@ -781,7 +824,194 @@ document
 .textContent =
 rank;
 
+let html = "<h3>❌ ミスした単語一覧</h3>";
+
+if(mistakeList.length===0){
+
+    html +=
+    "<p>ミスなし！パーフェクト！</p>";
+
+}else{
+
+    mistakeList.forEach((m,i)=>{
+
+        html += `
+        <div style="
+            text-align:left;
+            margin:8px 0;
+            padding:8px;
+            background:#fff5f5;
+            border-radius:10px;
+        ">
+        <b>${i+1}. ${m.english}</b>
+        （${m.japanese}）
+
+        <br>
+
+        選んだカード：
+        ${m.wrong}
+        </div>
+        `;
+    });
 }
+
+document.getElementById(
+"mistakeList"
+).innerHTML = html;
+
+
+}
+
+function startReviewGame(){
+
+    if(reviewPairs.length===0){
+
+        alert("ミスした単語はありません！");
+
+        return;
+    }
+
+    reviewMode = true;
+
+    matched = 0;
+
+    selectedCard = null;
+    selectedElement = null;
+
+    document.getElementById(
+        "resultScreen"
+    ).style.display = "none";
+
+    document.getElementById(
+        "gameArea"
+    ).style.display = "block";
+
+    document.getElementById(
+        "progress"
+    ).textContent =
+    `✅ 0/${reviewPairs.length}`;
+
+    createReviewBoard();
+
+}
+
+function createReviewBoard(){
+
+    const cards = [];
+
+    reviewPairs.forEach(pair=>{
+
+        cards.push({
+            type:"english",
+            pair:pair
+        });
+
+        cards.push({
+            type:"japanese",
+            pair:pair
+        });
+
+    });
+
+    cards.sort(
+        ()=>Math.random()-0.5
+    );
+
+    const grid =
+    document.getElementById(
+        "cardGrid"
+    );
+
+    grid.innerHTML = "";
+
+    cards.forEach(card=>{
+
+        const div =
+        document.createElement("div");
+
+        div.className = "card";
+
+        if(card.type==="english"){
+
+            div.innerHTML = `
+            <div class="word">
+            ${card.pair.english}
+            </div>
+            <div class="small">
+            ${card.pair.reading}
+            </div>
+            `;
+
+        }else{
+
+            const furi =
+            card.pair.furigana
+            ? `<div class="small">${card.pair.furigana}</div>`
+            : "";
+
+            div.innerHTML = `
+            <div class="word">
+            ${card.pair.japanese}
+            </div>
+            ${furi}
+            `;
+        }
+
+        div.onclick =
+        ()=>selectCard(div,card);
+
+        grid.appendChild(div);
+
+    });
+
+}
+
+function startReviewGame(){
+
+    // ミスした単語がない場合
+    if(reviewPairs.length === 0){
+
+        alert("ミスした単語はありません！");
+
+        return;
+    }
+
+    // 復習モードON
+    reviewMode = true;
+
+    // 正解数をリセット
+    matched = 0;
+
+    // 選択状態をリセット
+    selectedCard = null;
+    selectedElement = null;
+
+    // メッセージを消す
+    document.getElementById(
+        "message"
+    ).textContent = "";
+
+    // 結果画面を消す
+    document.getElementById(
+        "resultScreen"
+    ).style.display = "none";
+
+    // ゲーム画面を表示
+    document.getElementById(
+        "gameArea"
+    ).style.display = "block";
+
+    // 進捗表示を変更
+    document.getElementById(
+        "progress"
+    ).textContent =
+    `✅ 0/${reviewPairs.length}`;
+
+    // 復習用のカードを作る
+    createReviewBoard();
+
+}
+
 
 </script>
 
